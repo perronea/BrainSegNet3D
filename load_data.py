@@ -2,6 +2,7 @@ import os
 import numpy as np
 import nibabel as nib
 from keras.utils import Sequence
+import tensorflow as tf
 
 
 def load_data(data_dir, img_shape, classes, batch_size=1, n_imgs=None, n_segs=None, generator=False, subfolder="T1w_brain"):
@@ -14,10 +15,11 @@ def load_data(data_dir, img_shape, classes, batch_size=1, n_imgs=None, n_segs=No
 
     assert len(imgs_names) == len(segs_names)
 
-    with open("/home/exacloud/lustre1/fnl_lab/projects/BrainSegNet3D/data/classes.txt", "r") as c:
-        classes = [int(line.rstrip()) for line in c]
+    #with open("/home/exacloud/lustre1/fnl_lab/projects/BrainSegNet3D/data/classes.txt", "r") as c:
+    #    classes = [int(line.rstrip()) for line in c]
 
     if generator:
+        print("Creating data generator")
         return np_sequence(imgs_path, segs_path, imgs_names, segs_names, img_shape, classes, batch_size=batch_size)
     else:
         imgs_arr = create_np_array(imgs_names, imgs_path)
@@ -26,7 +28,11 @@ def load_data(data_dir, img_shape, classes, batch_size=1, n_imgs=None, n_segs=No
         #print("Done Loading Brain Images")
         #segs_arr = create_image_array(segs_names, segs_path, img_shape, classes)
         #print("Done Loading Segmentations")
-        return {"brain_images": imgs_arr, "segmentations": segs_arr}
+        print(imgs_arr.shape)
+        print(segs_arr.shape)
+        train_dataset = tf.data.Dataset.from_tensor_slices((imgs_arr, segs_arr))
+        #return {"brain_images": imgs_arr, "segmentations": segs_arr}
+        return(train_dataset)
 
 def create_np_array(imgs_names, imgs_path):
     image_arr_list = []
@@ -88,12 +94,17 @@ class np_sequence(Sequence):
 
     def __init__(self, imgs_path, segs_path, imgs_names, segs_names, img_shape, classes, batch_size=1):
         self.batch_size = batch_size
+        print("batch size = {}".format(self.batch_size))
         self.train_imgs = imgs_names
         self.train_segs = segs_names
         self.imgs_path = imgs_path
         self.segs_path = segs_path
+        print("imgs_path = {}".format(self.imgs_path))
+        print("segs_path = {}".format(self.segs_path))
         self.img_shape = img_shape
+        print("img_shape = {}".format(self.img_shape))
         self.classes = classes
+        print("classes = {}".format(self.classes))
 
     def __len__(self):
         return int(len(self.train_imgs) / int(self.batch_size))
@@ -110,8 +121,10 @@ class np_sequence(Sequence):
             seg = np.load(os.path.join(self.segs_path, name))
             segs_arr.append(seg)
 
+        print(np.array(imgs_arr).shape, np.array(segs_arr).shape)
 
-        return(np.array(imgs_arr), np.array(segs_arr))
+
+        return np.array(imgs_arr), np.array(segs_arr)
 
 
 class data_sequence(Sequence):
@@ -148,15 +161,15 @@ class data_sequence(Sequence):
         #    for i in indexes:
         #        segs_batch.append(self.train_segs[i])
         #else:
-        print("Getting %s" % str(idx))
+        #print("Getting %s" % str(idx))
         imgs_batch = self.train_imgs[idx * self.batch_size:(idx + 1) * self.batch_size]
         segs_batch = self.train_segs[idx * self.batch_size:(idx + 1) * self.batch_size]        
-        print(imgs_batch)
-        print(segs_batch)
+        #print(imgs_batch)
+        #print(segs_batch)
         imgs_arr = create_image_array(imgs_batch, self.imgs_path, self.img_shape, self.classes)
         segs_arr = create_image_array(segs_batch, self.segs_path, self.img_shape, self.classes)
-        print(imgs_arr.shape)
-        print(segs_arr.shape)
+        #print(imgs_arr.shape)
+        #print(segs_arr.shape)
 
 
         return(np.array(imgs_arr), np.array(segs_arr))
